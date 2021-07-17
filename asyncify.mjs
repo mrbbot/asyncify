@@ -49,9 +49,10 @@ function proxyGet(obj, transform) {
 }
 
 class Asyncify {
-  constructor() {
+  constructor(options = {}) {
     this.value = undefined;
     this.exports = null;
+    this.wrappedExports = options.wrappedExports;
   }
 
   getState() {
@@ -133,7 +134,7 @@ class Asyncify {
 
     for (let exportName in exports) {
       let value = exports[exportName];
-      if (typeof value === 'function' && !exportName.startsWith('asyncify_')) {
+      if (typeof value === 'function' && !exportName.startsWith('asyncify_') && (this.wrappedExports === undefined || this.wrappedExports.has(exportName))) {
         value = this.wrapExportFn(value);
       }
       Object.defineProperty(newExports, exportName, {
@@ -161,8 +162,8 @@ class Asyncify {
 }
 
 export class Instance extends WebAssembly.Instance {
-  constructor(module, imports) {
-    let state = new Asyncify();
+  constructor(module, imports, options) {
+    let state = new Asyncify(options);
     super(module, state.wrapImports(imports));
     state.init(this, imports);
   }
@@ -174,8 +175,8 @@ export class Instance extends WebAssembly.Instance {
 
 Object.defineProperty(Instance.prototype, 'exports', { enumerable: true });
 
-export async function instantiate(source, imports) {
-  let state = new Asyncify();
+export async function instantiate(source, imports, options) {
+  let state = new Asyncify(options);
   let result = await WebAssembly.instantiate(
     source,
     state.wrapImports(imports)
@@ -187,8 +188,8 @@ export async function instantiate(source, imports) {
   return result;
 }
 
-export async function instantiateStreaming(source, imports) {
-  let state = new Asyncify();
+export async function instantiateStreaming(source, imports, options) {
+  let state = new Asyncify(options);
   let result = await WebAssembly.instantiateStreaming(
     source,
     state.wrapImports(imports)
